@@ -93,18 +93,23 @@ HRESULT Library_sys_net_native_System_Net_Security_CertificateManager::GetDevice
 
     if (deviceCert)
     {
-        CLR_RT_HeapBlock_Array *array;
+        X509RawData rawData;
 
-        NANOCLR_CHECK_HRESULT(
-            CLR_RT_HeapBlock_Array::CreateInstance(ret, deviceCert->CertificateSize, g_CLR_RT_WellKnownTypes.m_UInt8));
+        if (SSL_GetPublicKeyRaw((const char *)deviceCert->Certificate, deviceCert->CertificateSize, &rawData))
+        {
+            CLR_RT_HeapBlock_Array *array;
 
-        array = ret.DereferenceArray();
+            NANOCLR_CHECK_HRESULT(
+                CLR_RT_HeapBlock_Array::CreateInstance(ret, rawData.len, g_CLR_RT_WellKnownTypes.m_UInt8));
 
-        memcpy(array->GetFirstElement(), deviceCert->Certificate, deviceCert->CertificateSize);
-    }
-    else
-    {
-        ret.SetObjectReference(NULL);
+            array = ret.DereferenceArray();
+
+            memcpy(array->GetFirstElement(), rawData.p, rawData.len);
+
+            platform_free(rawData.p);
+        }
+
+        platform_free(deviceCert);
     }
 
     NANOCLR_NOCLEANUP();
